@@ -1,5 +1,85 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const Admin = require("../models/Admin");
+
+const createToken = (admin) => jwt.sign(
+    {
+        id: admin._id,
+        email: admin.email,
+        role: "admin"
+    },
+    process.env.JWT_SECRET,
+    {
+        expiresIn: "1d"
+    }
+);
+
+const adminResponse = (admin) => ({
+    id: admin._id,
+    email: admin.email,
+    name: admin.name,
+    role: "admin"
+});
+
+const register = async (req, res) => {
+    try {
+        const name = String(req.body.name || "").trim();
+        const email = String(req.body.email || "")
+            .trim()
+            .toLowerCase();
+        const password = String(req.body.password || "");
+
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: "Name, email and password are required"
+            });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: "Password must be at least 8 characters"
+            });
+        }
+
+        const existingAdmin = await Admin.findOne({ email });
+
+        if (existingAdmin) {
+            return res.status(409).json({
+                success: false,
+                message: "An account with this email already exists"
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+        const admin = await Admin.create({
+            name,
+            email,
+            password: hashedPassword
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: "Account created successfully",
+            token: createToken(admin),
+            admin: adminResponse(admin)
+        });
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: "An account with this email already exists"
+            });
+        }
+
+        console.error("Registration Error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+};
 
 const login = async (req, res) => {
     try {
@@ -8,25 +88,16 @@ const login = async (req, res) => {
             .toLowerCase();
         const password = String(req.body.password || "");
 
-        const adminEmail = String(process.env.ADMIN_EMAIL || "")
-            .trim()
-            .toLowerCase();
+        const admin = await Admin.findOne({ email });
 
-        // Check email
-        if (!adminEmail || email !== adminEmail) {
+        if (!admin) {
             return res.status(401).json({
                 success: false,
                 message: "Invalid email or password"
             });
         }
 
-        // Compare password
-        const passwordHash = await bcrypt.hash(
-            process.env.ADMIN_PASSWORD,
-            10
-        );
-
-        const isMatch = await bcrypt.compare(password, passwordHash);
+        const isMatch = await bcrypt.compare(password, admin.password);
 
         if (!isMatch) {
             return res.status(401).json({
@@ -35,26 +106,13 @@ const login = async (req, res) => {
             });
         }
 
-        // Create JWT
-        const token = jwt.sign(
-            {
-                email: adminEmail,
-                role: "admin"
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: "1d"
-            }
-        );
+        const token = createToken(admin);
 
         res.json({
             success: true,
             message: "Login successful",
             token,
-            admin: {
-                email: adminEmail,
-                role: "admin"
-            }
+            admin: adminResponse(admin)
         });
 
     } catch (error) {
@@ -68,5 +126,6 @@ const login = async (req, res) => {
 };
 
 module.exports = {
-    login
+    login,
+    register
 };

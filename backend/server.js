@@ -10,6 +10,8 @@ if (process.env.DNS_SERVER) {
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const Admin = require("./models/Admin");
+const Class = require("./models/Class");
 
 const authRoutes =
     require("./routes/authRoutes");
@@ -68,6 +70,10 @@ mongoose
     )
     .then(() => {
 
+        return migrateLegacyClasses();
+    })
+    .then(() => {
+
         console.log(
             "MongoDB Connected Successfully"
         );
@@ -90,3 +96,33 @@ mongoose
             error
         );
     });
+
+async function migrateLegacyClasses() {
+    const adminEmail = String(process.env.ADMIN_EMAIL || "")
+        .trim()
+        .toLowerCase();
+
+    if (!adminEmail) {
+        return;
+    }
+
+    const admin = await Admin.findOne({
+        email: adminEmail
+    });
+
+    if (!admin) {
+        return;
+    }
+
+    await Class.updateMany(
+        {
+            $or: [
+                { createdBy: { $exists: false } },
+                { createdBy: null }
+            ]
+        },
+        {
+            $set: { createdBy: admin._id }
+        }
+    );
+}

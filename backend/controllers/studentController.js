@@ -1,6 +1,12 @@
 const Student = require("../models/Student");
 const Class = require("../models/Class");
 
+const getOwnedClass = (classId, adminId) =>
+    Class.findOne({
+        _id: classId,
+        createdBy: adminId
+    });
+
 const calculateResult = (subjects = []) => {
 
     if (!subjects.length) {
@@ -67,6 +73,18 @@ const getStudents = async (req, res) => {
 
     try {
 
+        const classExists = await getOwnedClass(
+            req.params.classId,
+            req.admin.id
+        );
+
+        if (!classExists) {
+            return res.status(404).json({
+                success: false,
+                message: "Class not found"
+            });
+        }
+
         const students =
             await Student.find({
                 classId:
@@ -116,6 +134,18 @@ const getStudent = async (req, res) => {
             });
         }
 
+        const classExists = await getOwnedClass(
+            student.classId._id,
+            req.admin.id
+        );
+
+        if (!classExists) {
+            return res.status(404).json({
+                success: false,
+                message: "Student not found"
+            });
+        }
+
         res.json({
             success: true,
             student
@@ -161,10 +191,10 @@ const createStudent = async (req, res) => {
             });
         }
 
-        const classExists =
-            await Class.findById(
-                classId
-            );
+        const classExists = await getOwnedClass(
+            classId,
+            req.admin.id
+        );
 
         if (!classExists) {
 
@@ -228,15 +258,28 @@ const updateStudent = async (req, res) => {
 
     try {
 
-        const student =
-            await Student.findByIdAndUpdate(
-                req.params.id,
-                req.body,
-                {
-                    new: true,
-                    runValidators: true
-                }
-            );
+        const existingStudent = await Student.findById(
+            req.params.id
+        );
+
+        if (!existingStudent || !await getOwnedClass(
+            existingStudent.classId,
+            req.admin.id
+        )) {
+            return res.status(404).json({
+                success: false,
+                message: "Student not found"
+            });
+        }
+
+        const student = await Student.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            {
+                new: true,
+                runValidators: true
+            }
+        );
 
         if (!student) {
 
@@ -280,20 +323,33 @@ const updateMarks = async (req, res) => {
             });
         }
 
-        const student =
-            await Student.findByIdAndUpdate(
-                req.params.id,
-                {
-                    subjects
-                },
-                {
-                    new: true,
-                    runValidators: true
-                }
-            ).populate(
-                "classId",
-                "className"
-            );
+        const existingStudent = await Student.findById(
+            req.params.id
+        );
+
+        if (!existingStudent || !await getOwnedClass(
+            existingStudent.classId,
+            req.admin.id
+        )) {
+            return res.status(404).json({
+                success: false,
+                message: "Student not found"
+            });
+        }
+
+        const student = await Student.findByIdAndUpdate(
+            req.params.id,
+            {
+                subjects
+            },
+            {
+                new: true,
+                runValidators: true
+            }
+        ).populate(
+            "classId",
+            "className"
+        );
 
         if (!student) {
 
@@ -329,10 +385,23 @@ const deleteStudent = async (req, res) => {
 
     try {
 
-        const student =
-            await Student.findByIdAndDelete(
-                req.params.id
-            );
+        const existingStudent = await Student.findById(
+            req.params.id
+        );
+
+        if (!existingStudent || !await getOwnedClass(
+            existingStudent.classId,
+            req.admin.id
+        )) {
+            return res.status(404).json({
+                success: false,
+                message: "Student not found"
+            });
+        }
+
+        const student = await Student.findByIdAndDelete(
+            req.params.id
+        );
 
         if (!student) {
 
@@ -362,6 +431,18 @@ const deleteStudent = async (req, res) => {
 const dashboardStats = async (req, res) => {
 
     try {
+
+        const classExists = await getOwnedClass(
+            req.params.classId,
+            req.admin.id
+        );
+
+        if (!classExists) {
+            return res.status(404).json({
+                success: false,
+                message: "Class not found"
+            });
+        }
 
         const students =
             await Student.find({
@@ -465,10 +546,10 @@ const uploadStudents = async (req, res) => {
             });
         }
 
-        const classExists =
-            await Class.findById(
-                classId
-            );
+        const classExists = await getOwnedClass(
+            classId,
+            req.admin.id
+        );
 
         if (!classExists) {
 

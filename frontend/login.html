@@ -35,15 +35,35 @@
                 UE
             </div>
 
-            <h2>
+            <h2 id="authTitle">
                 University Examination Cell
             </h2>
 
-            <p class="login-subtitle">
+            <p class="login-subtitle" id="authSubtitle">
                 Examination Management Portal
             </p>
 
             <form id="loginForm">
+
+                <div class="mb-3">
+
+                    <label id="nameLabel" class="d-none">
+                        Full Name
+                    </label>
+
+                    <div class="input-icon d-none" id="nameField">
+
+                        <i class="bi bi-person"></i>
+
+                        <input
+                            type="text"
+                            id="name"
+                            class="form-control"
+                            placeholder="Enter your full name">
+
+                    </div>
+
+                </div>
 
                 <div class="mb-3">
 
@@ -59,7 +79,7 @@
                             type="email"
                             id="email"
                             class="form-control"
-                            placeholder="Enter admin email"
+                            placeholder="Enter email"
                             required>
 
                     </div>
@@ -100,16 +120,20 @@
                     class="btn btn-primary login-button"
                     id="loginButton">
 
-                    Login
+                    <span id="submitText">Login</span>
                     <i class="bi bi-arrow-right"></i>
 
                 </button>
 
             </form>
 
+            <button type="button" class="btn btn-link mt-3" id="toggleAuth">
+                Create a new account
+            </button>
+
 
             <div class="login-footer">
-                Authorized University Administrator
+                <span id="authFooter">Authorized University Administrator</span>
             </div>
 
         </div>
@@ -138,6 +162,20 @@
             }
 
 
+            let isSignup = false;
+
+            $("#toggleAuth").click(function () {
+                isSignup = !isSignup;
+                $("#nameField, #nameLabel").toggleClass("d-none", !isSignup);
+                $("#name").prop("required", isSignup);
+                $("#authTitle").text(isSignup ? "Create Administrator Account" : "University Examination Cell");
+                $("#authSubtitle").text(isSignup ? "Register to access the examination portal" : "Examination Management Portal");
+                $("#submitText").text(isSignup ? "Sign up" : "Login");
+                $("#toggleAuth").text(isSignup ? "Already have an account? Sign in" : "Create a new account");
+                $("#authFooter").text(isSignup ? "Your account will be securely saved in MongoDB" : "Authorized University Administrator");
+                $("#loginError").addClass("d-none");
+            });
+
             $("#loginForm").submit(
                 function (e) {
 
@@ -151,6 +189,11 @@
                     const password =
                         $("#password")
                             .val();
+
+                    const name =
+                        $("#name")
+                            .val()
+                            .trim();
 
                     $("#loginError")
                         .addClass(
@@ -171,7 +214,8 @@
                     $.ajax({
 
                         url:
-                            "http://localhost:5000/api/auth/login",
+                            "http://localhost:5000/api/auth/" +
+                            (isSignup ? "register" : "login"),
 
                         method: "POST",
 
@@ -181,7 +225,8 @@
                         data:
                             JSON.stringify({
                                 email,
-                                password
+                                password,
+                                ...(isSignup ? { name } : {})
                             }),
 
                         success:
@@ -212,7 +257,8 @@
                                         false
                                     )
                                     .html(
-                                        'Login <i class="bi bi-arrow-right"></i>'
+                                        (isSignup ? 'Sign up' : 'Login') +
+                                        ' <i class="bi bi-arrow-right"></i>'
                                     );
 
                                 $("#loginError")

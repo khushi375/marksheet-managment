@@ -6,7 +6,9 @@ const getClasses = async (req, res) => {
     try {
 
         const classes =
-            await Class.find()
+            await Class.find({
+                createdBy: req.admin.id
+            })
                 .sort({
                     createdAt: -1
                 })
@@ -56,8 +58,8 @@ const createClass = async (req, res) => {
 
         const exists =
             await Class.findOne({
-                className:
-                    className.trim()
+                className: className.trim(),
+                createdBy: req.admin.id
             });
 
         if (exists) {
@@ -71,8 +73,8 @@ const createClass = async (req, res) => {
 
         const newClass =
             await Class.create({
-                className:
-                    className.trim()
+                className: className.trim(),
+                createdBy: req.admin.id
             });
 
         res.status(201).json({
@@ -96,6 +98,18 @@ const deleteClass = async (req, res) => {
 
     try {
 
+        const ownedClass = await Class.findOne({
+            _id: req.params.id,
+            createdBy: req.admin.id
+        });
+
+        if (!ownedClass) {
+            return res.status(404).json({
+                success: false,
+                message: "Class not found"
+            });
+        }
+
         const studentCount =
             await Student.countDocuments({
                 classId: req.params.id
@@ -111,9 +125,10 @@ const deleteClass = async (req, res) => {
         }
 
         const deleted =
-            await Class.findByIdAndDelete(
-                req.params.id
-            );
+            await Class.findOneAndDelete({
+                _id: req.params.id,
+                createdBy: req.admin.id
+            });
 
         if (!deleted) {
 
